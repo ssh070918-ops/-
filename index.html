@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>익명 심리 분노 대나무숲 & 쿨다운 타이머</title>
+    <!-- Tailwind CSS CDN 로드 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        bamboo: {
+                            50: '#f4f7f4',
+                            100: '#e5ede5',
+                            200: '#c8dbc8',
+                            500: '#6b8e6b',
+                            600: '#557355',
+                            700: '#425a42',
+                        },
+                        ivory: {
+                            bg: '#fcfbf9',
+                            card: '#ffffff',
+                        },
+                        slateGray: {
+                            DEFAULT: '#4a5568',
+                            dark: '#2d3748'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Pretendard', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Pretendard', sans-serif;
+            background-color: #fcfbf9;
+            color: #2d3748;
+        }
+        /* 커스텀 스크롤바 디자인 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f4f7f4;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #c8dbc8;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-bamboo-200">
+
+    <!-- 커스텀 알림 모달 -->
+    <div id="customModal" class="fixed inset-0 bg-black/40 z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-xl transform scale-95 transition-transform duration-300" id="modalContent">
+            <h3 id="modalTitle" class="text-lg font-bold text-slateGray-dark mb-2">알림</h3>
+            <p id="modalMessage" class="text-slateGray text-sm mb-6 leading-relaxed">메시지 내용입니다.</p>
+            <div class="flex justify-end">
+                <button onclick="closeModal()" class="px-5 py-2.5 bg-bamboo-600 text-white rounded-xl text-sm font-semibold hover:bg-bamboo-700 transition-colors shadow-sm">확인</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3분 쿨다운 타이머 오버레이 -->
+    <div id="cooldownModal" class="fixed inset-0 bg-bamboo-700/90 z-50 flex flex-col items-center justify-center hidden opacity-0 transition-opacity duration-500 text-white px-4">
+        <div class="max-w-md w-full bg-white/10 backdrop-blur-md rounded-3xl p-8 border border-white/20 shadow-2xl text-center flex flex-col items-center">
+            <span class="text-xs uppercase tracking-widest text-bamboo-200 font-medium mb-2">마음 가라앉히기 쿨다운</span>
+            <h2 class="text-2xl font-bold mb-1">심호흡 세션 (3분)</h2>
+            <p class="text-sm text-bamboo-100 mb-8" id="breathInstruction">편안하게 숨을 들이쉬세요...</p>
+
+            <!-- 원형 호흡 애니메이션 컨테이너 -->
+            <div class="relative w-48 h-48 flex items-center justify-center mb-8">
+                <!-- 바깥쪽 맥동 링 -->
+                <div id="breathCircle" class="absolute w-36 h-36 bg-bamboo-400/40 rounded-full transition-all duration-[4000ms] scale-100"></div>
+                <!-- 안쪽 코어 원 -->
+                <div class="absolute w-28 h-28 bg-white rounded-full shadow-lg flex items-center justify-center">
+                    <span id="timerDisplay" class="text-3xl font-extrabold text-bamboo-700">03:00</span>
+                </div>
+            </div>
+
+            <div class="flex gap-4 w-full">
+                <button onclick="skipCooldown()" class="flex-1 py-3 bg-white/20 hover:bg-white/30 text-white rounded-xl text-sm font-semibold transition-colors border border-white/30">
+                    건너뛰기
+                </button>
+                <button onclick="finishCooldown()" id="completeCooldownBtn" class="flex-1 py-3 bg-white text-bamboo-700 hover:bg-bamboo-50 rounded-xl text-sm font-bold transition-colors shadow-md hidden">
+                    대나무숲 피드로 가기
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 상단 네비게이션 바 -->
+    <header class="bg-white border-b border-bamboo-100 sticky top-0 z-30 shadow-xs">
+        <div class="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="switchTab('feed')">
+                <div class="w-10 h-10 rounded-2xl bg-bamboo-100 flex items-center justify-center text-xl text-bamboo-700 shadow-inner">
+                    🎋
+                </div>
+                <div>
+                    <h1 class="font-bold text-slateGray-dark text-base sm:text-lg tracking-tight">익명 심리 분노 대나무숲</h1>
+                    <p class="text-xs text-slateGray/70">화가 날 때 털어놓고 숨 고르는 공간</p>
+                </div>
+            </div>
+            <nav class="flex items-center gap-1 sm:gap-2">
+                <button onclick="switchTab('feed')" id="navFeedBtn" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all bg-bamboo-100 text-bamboo-700 shadow-xs">
+                    대나무숲 피드
+                </button>
+                <button onclick="switchTab('stats')" id="navStatsBtn" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all text-slateGray hover:bg-bamboo-50">
+                    나의 감정 통계
+                </button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- 메인 컨테이너 -->
+    <main class="flex-1 max-w-5xl w-full mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        <!-- 왼쪽 영역: 사연 작성 영역 (lg:col-span-5) -->
+        <section class="lg:col-span-5 bg-white rounded-3xl p-6 shadow-sm border border-bamboo-100/80 sticky top-24">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="font-bold text-slateGray-dark text-lg flex items-center gap-2">
+                    <span>✍️</span> 답답한 마음 털어놓기
+                </h2>
+                <span class="text-xs text-slateGray/60 bg-bamboo-50 px-2.5 py-1 rounded-full font-medium">익명 보장</span>
+            </div>
+            <p class="text-xs text-slateGray mb-5 leading-relaxed">
+                팀플, 시험, 아르바이트 등으로 쌓인 화를 편하게 적어보세요. 등록 후 3분 쿨다운 타이머가 시작됩니다.
+            </p>
+
+            <form id="storyForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
+                <!-- 카테고리 선택 -->
+                <div>
+                    <label class="block text-xs font-semibold text-slateGray mb-1.5">스트레스 카테고리</label>
+                    <select id="categorySelect" required class="w-full rounded-xl border border-bamboo-200 bg-ivory-bg px-3 py-2.5 text-sm text-slateGray-dark focus:outline-none focus:ring-2 focus:ring-bamboo-500">
+                        <option value="" disabled selected>카테고리를 선택해주세요</option>
+                        <option value="팀플">팀플 (조원 갈등/무임승차)</option>
+                        <option value="시험">시험 (성적/공부 스트레스)</option>
+                        <option value="교수님">교수님 (수업/학점 부당함)</option>
+                        <option value="아르바이트">아르바이트 (진상 손님/업무)</option>
+                        <option value="취업/진로">취업/진로 (막막함/자소서)</option>
+                        <option value="기타">기타 일상 스트레스</option>
+                    </select>
+                </div>
+
+                <!-- 분노 수치 슬라이더 -->
+                <div>
+                    <div class="flex justify-between items-center mb-1.5">
+                        <label class="text-xs font-semibold text-slateGray">현재 분노 수치</label>
+                        <span class="text-xs font-bold text-bamboo-700 bg-bamboo-50 px-2 py-0.5 rounded-md" id="angerValueDisplay">5점 / 10점</span>
+                    </div>
+                    <input type="range" id="angerSlider" min="1" max="10" value="5" oninput="updateAngerDisplay(this.value)" class="w-full accent-bamboo-600 cursor-pointer h-2 bg-bamboo-100 rounded-lg">
+                    <div class="flex justify-between text-[10px] text-slateGray/60 mt-1">
+                        <span>1점 (약간 답답)</span>
+                        <span>8점 이상 (매우 분노)</span>
+                        <span>10점 (폭발 직전)</span>
+                    </div>
+                </div>
+
+                <!-- 사연 내용 입력 -->
+                <div>
+                    <div class="flex justify-between items-center mb-1.5">
+                        <label class="text-xs font-semibold text-slateGray">사연 내용 (최대 500자)</label>
+                        <span class="text-[10px] text-slateGray/60" id="charCount">0 / 500자</span>
+                    </div>
+                    <textarea id="storyContent" rows="5" maxlength="500" required oninput="updateCharCount(this)" placeholder="어떤 일이 있었나요? 마음껏 털어놓으세요." class="w-full rounded-xl border border-bamboo-200 bg-ivory-bg p-3 text-sm text-slateGray-dark focus:outline-none focus:ring-2 focus:ring-bamboo-500 resize-none"></textarea>
+                </div>
+
+                <!-- 제출 버튼 -->
+                <button type="submit" class="w-full py-3.5 bg-bamboo-600 hover:bg-bamboo-700 text-white rounded-xl font-bold text-sm shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer">
+                    <span>등록하고 3분 쿨다운 시작하기</span>
+                    <span>🌿</span>
+                </button>
+            </form>
+        </section>
+
+        <!-- 오른쪽 영역: 피드 및 통계 영역 (lg:col-span-7) -->
+        <section class="lg:col-span-7 space-y-6">
+            
+            <!-- 피드 탭 컨텐츠 -->
+            <div id="feedTabContent" class="space-y-4">
+                <!-- 필터 및 검색 바 -->
+                <div class="bg-white rounded-2xl p-4 shadow-xs border border-bamboo-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div class="flex items-center gap-2 w-full sm:w-auto overflow-x-auto pb-1 sm:pb-0">
+                        <button onclick="filterCategory('전체')" id="filter-전체" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-bamboo-600 text-white transition-colors shrink-0">전체보기</button>
+                        <button onclick="filterCategory('팀플')" id="filter-팀플" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-bamboo-50 text-slateGray hover:bg-bamboo-100 transition-colors shrink-0">팀플</button>
+                        <button onclick="filterCategory('시험')" id="filter-시험" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-bamboo-50 text-slateGray hover:bg-bamboo-100 transition-colors shrink-0">시험</button>
+                        <button onclick="filterCategory('교수님')" id="filter-교수님" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-bamboo-50 text-slateGray hover:bg-bamboo-100 transition-colors shrink-0">교수님</button>
+                        <button onclick="filterCategory('아르바이트')" id="filter-아르바이트" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-bamboo-50 text-slateGray hover:bg-bamboo-100 transition-colors shrink-0">알바</button>
+                        <button onclick="filterCategory('취업/진로')" id="filter-취업/진로" class="filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-bamboo-50 text-slateGray hover:bg-bamboo-100 transition-colors shrink-0">취업</button>
+                    </div>
+                    <div class="text-xs font-medium text-slateGray/70 shrink-0" id="storyCountBadge">
+                        총 0개의 사연
+                    </div>
+                </div>
+
+                <!-- 사연 카드 리스트 컨테이너 -->
+                <div id="storyListContainer" class="space-y-4">
+                    <!-- 자바스크립트로 동적 렌더링 -->
+                </div>
+            </div>
+
+            <!-- 나의 감정 통계 탭 컨텐츠 -->
+            <div id="statsTabContent" class="space-y-6 hidden">
+                <div class="bg-white rounded-3xl p-6 shadow-sm border border-bamboo-100">
+                    <h2 class="font-bold text-slateGray-dark text-lg mb-1 flex items-center gap-2">
+                        <span>📊</span> 최근 7일 동안의 나의 감정 분석
+                    </h2>
+                    <p class="text-xs text-slateGray mb-6">내가 작성한 사연들을 바탕으로 스트레스 패턴을 돌아봅니다.</p>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+                        <!-- 평균 분노 수치 카드 -->
+                        <div class="bg-bamboo-50/60 rounded-2xl p-5 border border-bamboo-100 flex flex-col justify-between">
+                            <span class="text-xs font-semibold text-slateGray mb-2">최근 7일 평균 분노 지수</span>
+                            <div class="flex items-baseline gap-2">
+                                <span class="text-3xl font-extrabold text-bamboo-700" id="avgAngerVal">0.0</span>
+                                <span class="text-xs text-slateGray">/ 10점</span>
+                            </div>
+                            <p class="text-[11px] text-slateGray/70 mt-2" id="avgAngerComment">작성된 사연이 없습니다.</p>
+                        </div>
+
+                        <!-- 최다 스트레스 카테고리 카드 -->
+                        <div class="bg-bamboo-50/60 rounded-2xl p-5 border border-bamboo-100 flex flex-col justify-between">
+                            <span class="text-xs font-semibold text-slateGray mb-2">가장 많이 겪은 스트레스</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-2xl font-bold text-bamboo-700" id="topCategoryVal">없음</span>
+                            </div>
+                            <p class="text-[11px] text-slateGray/70 mt-2">가장 자주 불만을 토로한 주제입니다.</p>
+                        </div>
+                    </div>
+
+                    <!-- 쿨다운 권고 메시지 박스 -->
+                    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+                        <span class="text-xl">💡</span>
+                        <div>
+                            <h4 class="text-xs font-bold text-amber-900 mb-1">마음 챙김 가이드</h4>
+                            <p class="text-xs text-amber-800 leading-relaxed" id="mindfulnessTip">
+                                분노가 높을 때는 잠시 심호흡을 하거나 가벼운 산책으로 에너지를 분산시키는 것이 도움이 됩니다. 대나무숲에 마음껏 털어놓은 것만으로도 수고하셨습니다.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+    </main>
+
+    <!-- 푸터 -->
+    <footer class="bg-white border-t border-bamboo-100 py-6 mt-12 text-center text-xs text-slateGray/60">
+        <p>익명 심리 분노 대나무숲 & 쿨다운 타이머 &bull; 당신의 감정을 존중하고 응원합니다.</p>
+    </footer>
+
+    <!-- 자바스크립트 비즈니스 로직 -->
+    <script>
+        // 로컬스토리지 키 정의
+        const STORAGE_KEY = 'bamboo_forest_stories_v1';
+
+        // 전역 상태 변수
+        let currentFilter = '전체';
+        let cooldownTimer = null;
+        let timeLeft = 180; // 3분 = 180초
+
+        // 페이지 로드 시 실행
+        window.onload = function() {
+            renderStories();
+            updateStats();
+        };
+
+        // 탭 전환 함수 ('feed' 또는 'stats')
+        function switchTab(tabName) {
+            const feedBtn = document.getElementById('navFeedBtn');
+            const statsBtn = document.getElementById('navStatsBtn');
+            const feedContent = document.getElementById('feedTabContent');
+            const statsContent = document.getElementById('statsTabContent');
+
+            if (tabName === 'feed') {
+                feedBtn.className = "px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all bg-bamboo-100 text-bamboo-700 shadow-xs";
+                statsBtn.className = "px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all text-slateGray hover:bg-bamboo-50";
+                feedContent.classList.remove('hidden');
+                statsContent.classList.add('hidden');
+                renderStories();
+            } else {
+                statsBtn.className = "px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all bg-bamboo-100 text-bamboo-700 shadow-xs";
+                feedBtn.className = "px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all text-slateGray hover:bg-bamboo-50";
+                statsContent.classList.remove('hidden');
+                feedContent.classList.add('hidden');
+                updateStats();
+            }
+        }
+
+        // 커스텀 모달 알림 함수 (alert() 대용)
+        function showAlert(title, message) {
+            document.getElementById('modalTitle').innerText = title;
+            document.getElementById('modalMessage').innerText = message;
+            const modal = document.getElementById('customModal');
+            const content = document.getElementById('modalContent');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('customModal');
+            const content = document.getElementById('modalContent');
+            modal.classList.add('opacity-0');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        // 분노 수치 슬라이더 UI 업데이트
+        function updateAngerDisplay(val) {
+            document.getElementById('angerValueDisplay').innerText = val + '점 / 10점';
+        }
+
+        // 글자수 카운트 업데이트
+        function updateCharCount(textarea) {
+            const length = textarea.value.length;
+            document.getElementById('charCount').innerText = length + ' / 500자';
+        }
+
+        // 사연 데이터 가져오기 (localStorage)
+        function getStories() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            if (!data) return [];
+            try {
+                return JSON.parse(data);
+            } catch (e) {
+                return [];
+            }
+        }
+
+        // 사연 데이터 저장하기
+        function saveStories(stories) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(stories));
+        }
+
+        // 사연 등록 폼 제출 핸들러
+        function handleFormSubmit(event) {
+            event.preventDefault();
+            const category = document.getElementById('categorySelect').value;
+            const angerLevel = parseInt(document.getElementById('angerSlider').value, 10);
+            const content = document.getElementById('storyContent').value.trim();
+
+            if (!category) {
+                showAlert('입력 확인', '스트레스 카테고리를 선택해주세요.');
+                return;
+            }
+            if (content.length === 0) {
+                showAlert('입력 확인', '사연 내용을 입력해주세요.');
+                return;
+            }
+
+            const newStory = {
+                id: 'story_' + Date.now(),
+                category: category,
+                angerLevel: angerLevel,
+                content: content,
+                date: new Date().toISOString(),
+                likes: 0,
+                likedByMe: false
+            };
+
+            const stories = getStories();
+            stories.unshift(newStory); // 최신 글이 위로 오도록 추가
+            saveStories(stories);
+
+            // 폼 초기화
+            document.getElementById('storyForm').reset();
+            updateAngerDisplay(5);
+            document.getElementById('charCount').innerText = '0 / 500자';
+
+            // 쿨다운 타이머 화면 시작
+            startCooldownModal();
+        }
+
+        // 3분 쿨다운 타이머 시작
+        function startCooldownModal() {
+            const modal = document.getElementById('cooldownModal');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('opacity-0');
+            }, 10);
+
+            timeLeft = 180; // 3분
+            updateTimerDisplay();
+            document.getElementById('completeCooldownBtn').classList.add('hidden');
+
+            const breathCircle = document.getElementById('breathCircle');
+            const breathInstruction = document.getElementById('breathInstruction');
+
+            // 호흡 안내 주기 애니메이션 상태 정의 (4초 들이쉬기, 4초 내쉬기)
+            let isBreathIn = true;
+            breathInstruction.innerText = "코로 깊게 숨을 들이쉬세요...";
+            breathCircle.className = "absolute w-44 h-44 bg-bamboo-300/60 rounded-full transition-all duration-[4000ms] scale-125";
+
+            const breathInterval = setInterval(() => {
+                isBreathIn = !isBreathIn;
+                if (isBreathIn) {
+                    breathInstruction.innerText = "코로 깊게 숨을 들이쉬세요...";
+                    breathCircle.className = "absolute w-44 h-44 bg-bamboo-300/60 rounded-full transition-all duration-[4000ms] scale-125";
+                } else {
+                    breathInstruction.innerText = "입으로 천천히 숨을 내쉬세요...";
+                    breathCircle.className = "absolute w-36 h-36 bg-bamboo-400/40 rounded-full transition-all duration-[4000ms] scale-100";
+                }
+            }, 4000);
+
+            // 1초마다 타이머 감소
+            cooldownTimer = setInterval(() => {
+                timeLeft--;
+                updateTimerDisplay();
+
+                if (timeLeft <= 0) {
+                    clearInterval(cooldownTimer);
+                    clearInterval(breathInterval);
+                    breathInstruction.innerText = "3분 동안 마음 가라앉히기가 완료되었습니다.";
+                    document.getElementById('completeCooldownBtn').classList.remove('hidden');
+                }
+            }, 1000);
+
+            // 타이머 인터벌 ID 보관용 전역 부착
+            window._currentBreathInterval = breathInterval;
+        }
+
+        function updateTimerDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            document.getElementById('timerDisplay').innerText = 
+                String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+        }
+
+        // 쿨다운 건너뛰기 또는 완료 시 처리
+        function skipCooldown() {
+            closeCooldownModal();
+            switchTab('feed');
+        }
+
+        function finishCooldown() {
+            closeCooldownModal();
+            switchTab('feed');
+        }
+
+        function closeCooldownModal() {
+            clearInterval(cooldownTimer);
+            if (window._currentBreathInterval) clearInterval(window._currentBreathInterval);
+
+            const modal = document.getElementById('cooldownModal');
+            modal.classList.add('opacity-0');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 500);
+            renderStories();
+        }
+
+        // 카테고리 필터 변경
+        function filterCategory(category) {
+            currentFilter = category;
+            
+            // 버튼 스타일 업데이트
+            const buttons = document.querySelectorAll('.filter-btn');
+            buttons.forEach(btn => {
+                if (btn.id === 'filter-' + category) {
+                    btn.className = "filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-bamboo-600 text-white transition-colors shrink-0";
+                } else {
+                    btn.className = "filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-bamboo-50 text-slateGray hover:bg-bamboo-100 transition-colors shrink-0";
+                }
+            });
+
+            renderStories();
+        }
+
+        // 사연 피드 렌더링
+        function renderStories() {
+            const stories = getStories();
+            const container = document.getElementById('storyListContainer');
+            
+            // 필터링 적용
+            const filtered = currentFilter === '전체' 
+                ? stories 
+                : stories.filter(s => s.category === currentFilter);
+
+            document.getElementById('storyCountBadge').innerText = `총 ${filtered.length}개의 사연`;
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white rounded-2xl p-10 text-center border border-bamboo-100 shadow-xs">
+                        <span class="text-3xl mb-2 block">🍃</span>
+                        <h3 class="text-sm font-bold text-slateGray-dark mb-1">등록된 사연이 없습니다</h3>
+                        <p class="text-xs text-slateGray">왼쪽 작성 공간에서 첫 번째 사연을 털어놓아 보세요.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            filtered.forEach(story => {
+                // 분노 수치 8점 이상인 경우 경고 스타일 적용
+                const isHighAnger = story.angerLevel >= 8;
+                const cardBorder = isHighAnger ? 'border-amber-300 bg-amber-50/30' : 'border-bamboo-100 bg-white';
+                const angerBadgeColor = isHighAnger ? 'bg-amber-100 text-amber-800' : 'bg-bamboo-50 text-bamboo-700';
+
+                // 날짜 포맷팅
+                const dateStr = new Date(story.date).toLocaleString('ko-KR', {
+                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+
+                html += `
+                    <div class="${cardBorder} rounded-2xl p-5 shadow-xs border transition-all hover:shadow-md">
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-bamboo-100 text-bamboo-700">${story.category}</span>
+                                <span class="px-2 py-0.5 rounded-md text-xs font-semibold ${angerBadgeColor}">분노 ${story.angerLevel}점</span>
+                                ${isHighAnger ? '<span class="text-[10px] text-amber-700 font-bold bg-amber-100/60 px-2 py-0.5 rounded-md">🔥 집중 치유 필요</span>' : ''}
+                            </div>
+                            <span class="text-[11px] text-slateGray/60">${dateStr}</span>
+                        </div>
+
+                        <p class="text-sm text-slateGray-dark leading-relaxed whitespace-pre-wrap mb-4">${escapeHtml(story.content)}</p>
+
+                        <div class="flex items-center justify-between pt-3 border-t border-bamboo-100/60">
+                            <button onclick="toggleLike('${story.id}')" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${story.likedByMe ? 'bg-rose-50 text-rose-600 border border-rose-200' : 'bg-bamboo-50/70 text-slateGray hover:bg-bamboo-100'}">
+                                <span>${story.likedByMe ? '❤️ 공감취소' : '🤍 공감해요'}</span>
+                                <span class="font-bold">${story.likes}</span>
+                            </button>
+                            <button onclick="deleteStory('${story.id}')" class="text-xs text-slateGray/60 hover:text-rose-600 transition-colors py-1 px-2">
+                                삭제하기
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // 공감하기 토글 (중복 공감 방지 및 취소 기능)
+        function toggleLike(id) {
+            let stories = getStories();
+            stories = stories.map(s => {
+                if (s.id === id) {
+                    if (s.likedByMe) {
+                        s.likes = Math.max(0, s.likes - 1);
+                        s.likedByMe = false;
+                    } else {
+                        s.likes += 1;
+                        s.likedByMe = true;
+                    }
+                }
+                return s;
+            });
+            saveStories(stories);
+            renderStories();
+        }
+
+        // 사연 삭제
+        function deleteStory(id) {
+            let stories = getStories();
+            stories = stories.filter(s => s.id !== id);
+            saveStories(stories);
+            renderStories();
+            updateStats();
+        }
+
+        // 감정 통계 업데이트
+        function updateStats() {
+            const stories = getStories();
+            const avgValEl = document.getElementById('avgAngerVal');
+            const avgCommentEl = document.getElementById('avgAngerComment');
+            const topCatEl = document.getElementById('topCategoryVal');
+            const mindfulnessTip = document.getElementById('mindfulnessTip');
+
+            if (stories.length === 0) {
+                avgValEl.innerText = '0.0';
+                avgCommentEl.innerText = '작성된 사연이 없습니다.';
+                topCatEl.innerText = '없음';
+                mindfulnessTip.innerText = '분노가 높을 때는 잠시 심호흡을 하거나 가벼운 산책으로 에너지를 분산시키는 것이 도움이 됩니다. 대나무숲에 마음껏 털어놓은 것만으로도 수고하셨습니다.';
+                return;
+            }
+
+            // 평균 분노 수치 계산
+            const totalAnger = stories.reduce((sum, s) => sum + s.angerLevel, 0);
+            const avg = (totalAnger / stories.length).toFixed(1);
+            avgValEl.innerText = avg;
+
+            if (avg >= 7.0) {
+                avgCommentEl.innerText = '최근 전반적인 스트레스 수치가 매우 높습니다. 충분한 휴식이 필요해요.';
+            } else if (avg >= 4.0) {
+                avgCommentEl.innerText = '보통 수준의 스트레스를 겪고 계시네요. 감정 조절이 잘 이루어지고 있습니다.';
+            } else {
+                avgCommentEl.innerText = '비교적 평온한 상태를 유지하고 계십니다.';
+            }
+
+            // 최다 카테고리 계산
+            const catCounts = {};
+            stories.forEach(s => {
+                catCounts[s.category] = (catCounts[s.category] || 0) + 1;
+            });
+
+            let topCat = '없음';
+            let maxCount = -1;
+            for (const cat in catCounts) {
+                if (catCounts[cat] > maxCount) {
+                    maxCount = catCounts[cat];
+                    topCat = cat;
+                }
+            }
+            topCatEl.innerText = topCat + ` (${maxCount회})`;
+
+            // 마인드풀니스 맞춤형 팁
+            if (topCat === '팀플') {
+                mindfulnessTip.innerText = '팀플 갈등은 무임승차나 소통 부재에서 오는 경우가 많습니다. 내 몫의 노력에 자부심을 가지되, 무리한 책임감은 내려놓는 연습을 해보세요.';
+            } else if (topCat === '시험') {
+                mindfulnessTip.innerText = '시험 스트레스에는 잠시 책상에서 벗어나 가벼운 스트레칭이나 따뜻한 차 한 잔 마시기가 두뇌 피로 회복에 탁월합니다.';
+            } else if (topCat === '교수님') {
+                mindfulnessTip.innerText = '부당한 상황 속에서도 묵묵히 버텨내는 당신이 대단합니다. 억울한 감정은 대나무숲에 다 흘려보내고 마음의 평정을 되찾으세요.';
+            } else if (topCat === '아르바이트') {
+                mindfulnessTip.innerText = '진상 손님이나 고된 업무로 지칠 때는 "나는 돈을 벌러 온 직장인일 뿐"이라며 감정을 분리하는 멘탈 관리법이 큰 도움이 됩니다.';
+            } else {
+                mindfulnessTip.innerText = '오늘 하루도 마음 고생 많으셨습니다. 3분 쿨다운 호흡처럼 언제든 숨을 고를 수 있는 시간을 스스로에게 선물해주세요.';
+            }
+        }
+
+        // HTML 특수문자 이스케이프 (XSS 방지)
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
